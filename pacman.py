@@ -1,7 +1,5 @@
-from platform import node
 import pygame
 from pygame.locals import *
-from vector import Vector2
 from entity import Entity
 from sprites import PacmanSprites
 from constants import *
@@ -32,7 +30,6 @@ class Pacman(Entity):
         self.sprites.update(dt)
         self.position += self.directions[self.direction] * self.speed * dt
         direction = self.getValidKey()
-
         if self.overshotTarget():
             self.node = self.target
 

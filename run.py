@@ -10,6 +10,7 @@ from pauser import Pause
 from text import TextGroup
 from sprites import LifeSprites, MazeSprites
 from mazedata import MazeData
+from sounds import GameSounds
 
 class GameController(object):
     def __init__(self):
@@ -31,6 +32,8 @@ class GameController(object):
         self.flashTimer = 0
         self.fruitCaptured = []
         self.mazedata = MazeData()
+        self.audio = GameSounds()
+        self.firstLoad = True
 
     def setBackground(self):
         self.background_norm = pygame.surface.Surface(SCREENSIZE).convert()
@@ -43,6 +46,13 @@ class GameController(object):
         self.background = self.background_norm
     
     def startGame(self):
+        while self.firstLoad:
+            for event in pygame.event.get():
+                if event.type == QUIT:
+                    exit()
+                elif event.type == KEYDOWN:
+                    if event.key == K_SPACE:
+                        self.firstLoad = False
         self.mazedata.loadMaze(self.level)
         self.mazesprites = MazeSprites(self.mazedata.obj.name+".txt", self.mazedata.obj.name+"_rotation.txt")
         self.setBackground()
@@ -64,9 +74,10 @@ class GameController(object):
         self.ghosts.inky.startNode.denyAccess(RIGHT, self.ghosts.inky)
         self.ghosts.clyde.startNode.denyAccess(LEFT, self.ghosts.clyde)
         self.mazedata.obj.denyGhostsAccess(self.ghosts, self.nodes)
+        self.audio.sounds[INTRO].play()
     
     def nextLevel(self):
-        self.showEntities()
+        self.showEntities(play_chomp=False)
         self.level += 1
         self.pause.paused = True
         self.textgroup.updateLevel(self.level)
@@ -92,13 +103,16 @@ class GameController(object):
         self.textgroup.showText(READYTEXT)
         self.fruit = None
 
-    def showEntities(self):
+    def showEntities(self, play_chomp = True):
         self.pacman.visible = True
         self.ghosts.show()
+        if not self.audio.sounds[CHOMP].is_playing and play_chomp:
+            self.audio.sounds[CHOMP].play()
 
     def hideEntities(self):
         self.pacman.visible = False
         self.ghosts.hide()
+        self.audio.sounds[CHOMP].stop()
 
     def checkEvents(self):
         for event in pygame.event.get():
@@ -111,6 +125,7 @@ class GameController(object):
                         if not self.pause.paused:
                             self.textgroup.hideText()
                             self.showEntities()
+                            self.audio.sounds[INTRO].stop()
                         else:
                             self.textgroup.showText(PAUSETEXT)
                             self.hideEntities()
@@ -138,6 +153,8 @@ class GameController(object):
                 if ghost.mode.current is FRIEGHT:
                     self.pacman.visible = False
                     ghost.visible = False
+                    self.audio.sounds[CHOMP].stop()
+                    self.audio.sounds[EATGHOST].play()
                     self.updateScore(ghost.points)
                     self.textgroup.addText(str(ghost.points), WHITE, ghost.position.x, ghost.position.y, 12, time=1)
                     self.ghosts.updatePoints()
@@ -149,6 +166,8 @@ class GameController(object):
                         self.lives -= 1
                         self.lifeSprites.removeImage()
                         self.pacman.die()
+                        self.audio.sounds[CHOMP].stop()
+                        self.audio.sounds[DEATH].play()
                         self.ghosts.hide()
                         if self.lives <= 0:
                             self.textgroup.showText(GAMEOVERTEXT)
@@ -162,6 +181,7 @@ class GameController(object):
                 self.fruit = Fruit(self.nodes.getNodeFromTiles(9, 20))
         if self.fruit is not None:
             if self.pacman.collideCheck(self.fruit):
+                self.audio.sounds[EATFRUIT].play()
                 self.updateScore(self.fruit.points)
                 self.textgroup.addText(str(self.fruit.points), WHITE, self.fruit.position.x, self.fruit.position.y, 12, time=1)
                 fruitCaptured = False
